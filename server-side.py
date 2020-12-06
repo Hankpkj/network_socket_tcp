@@ -1,10 +1,7 @@
-#!/usr/bin/python
-# -*- coding: latin-1 -*-
-
+import errno
 import socket
-import sys
 import threading
-from os.path import exists
+from time import sleep
 
 
 class ChatServer:
@@ -16,7 +13,6 @@ class ChatServer:
     un_expected_disconnection = []
     obj_msg = []
 
-
     def __init__(self):
         # init socket
         self.server_socket = None
@@ -24,6 +20,7 @@ class ChatServer:
         self.create_listening_server()
 
     def create_listening_server(self):
+
         self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         server_ip = '127.0.0.1'
         # TODO: apply port with input value
@@ -42,33 +39,12 @@ class ChatServer:
     def receive_messages(self, so):
         while True:
             incoming_buffer = so.recv(1024)
-            # self.obj_msg.append()
 
             if not incoming_buffer:
                 break
 
             self.message_list.append(incoming_buffer.decode('utf-8'))
             self.broadcast_to_all_clients(so)  # send to all clients
-
-    def receive_file(self, so):
-        while True:
-            filename = so.recv(1024)
-            print('?? ??? : ', filename.decode('utf-8'))
-            data_transferred = 0
-
-            if not exists(filename):
-                print("no file")
-
-            print("?? %s ?? ??" % filename)
-            with open(filename, 'rb') as f:
-                try:
-                    data = f.read(1024)  # 1024??? ???
-                    while data:  # ???? ?? ???
-                        data_transferred += so.send(data)  # 1024??? ??? ?? ??
-                        data = f.read(1024)  # 1024??? ??
-                except Exception as ex:
-                    print(ex)
-            print("???? %s, ??? %d" % (filename, data_transferred))
 
     def broadcast_to_all_clients(self, senders_socket):
         for client in self.clients_list:
@@ -80,13 +56,17 @@ class ChatServer:
             # if ip + ':' + str(port) in self.str_client_list:
             #     self.str_client_list.remove(ip + ':' + str(port))
 
+    # def reconnect(self, so, ip, port):
+    #     t = threading.Thread(target=self.receive_messages, args=(so,))
+    #     t.start()
+    #     self.un_expected_disconnection.remove(ip + ':' + str(port))
+
     def receive_messages_in_a_new_thread(self):
+        connection = False
         while True:
             # accept
             client = so, (ip, port) = self.server_socket.accept()
             print(ip, port)
-            # self.message_list.append()
-            # if un_expected_disconnection user connect send list of msg
             if ip + ':' + str(port) in self.un_expected_disconnection:
                 for msg in self.message_list:
                     so.sendall(msg.encode('utf-8'))
@@ -96,14 +76,27 @@ class ChatServer:
             self.str_client_list.append(ip + ':' + str(port))
 
             t = threading.Thread(target=self.receive_messages, args=(so,))
-            t_file_read = threading.Thread(target=self.receive_file, args=(so, ))
             t.start()
-            t_file_read.start()
 
-            self.un_expected_disconnection.append(ip + ':' + str(port))
-            if ip + ':' + str(port) in self.str_client_list:
-                self.str_client_list.remove(ip + ':' + str(port))
+            if not connection:
+                try:
+                    so.connect((ip, port))
+                    print("re-connection successful")
+                    for i in self.message_list:
+                        so.sendall(i.encode('utf-8'))
+                    connection = True
 
+                except socket.error as e:
+                    if e.errno == 56:
+                        continue
+                    else:
+                        print('socket error', e)
+                        self.clients_list.remove(client)
+
+                finally:
+                    sleep(2)
+
+                # if un_expected_disconnection user connect send list of msg
 
 
 if __name__ == "__main__":
