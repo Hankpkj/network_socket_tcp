@@ -1,3 +1,5 @@
+import os
+import sys
 from tkinter import Tk, Frame, Scrollbar, Label, END, Entry, Text, VERTICAL, Button
 import socket
 import threading
@@ -14,6 +16,7 @@ class ClientSide:
         self.name_space = None
         self.ip_space = None
         self.port_space = None
+        self.file_space = None
         self.enter_text_widget = None
         self.join_button = None
         self.initialize_socket()
@@ -24,7 +27,9 @@ class ClientSide:
         self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         remote_ip = '127.0.0.1'
         remote_port = 9999
+        remote_port_file = 9900
         self.client_socket.connect((remote_ip, remote_port))
+        self.client_socket.connect((remote_ip, remote_port_file))
 
     def initialize_gui(self):
         self.root.title("Socket Chat")
@@ -33,11 +38,17 @@ class ClientSide:
         self.display_ip_section()
         self.display_port_section()
         self.display_name_section()
+        self.display_file()
         self.display_chat_entry_box()
 
     def listen_for_incoming_messages_in_a_thread(self):
         thread = threading.Thread(target=self.receive_message_from_server, args=(self.client_socket,))
         thread.start()
+    #     thread_file = threading.Thread(target=self.receive_file_from_server, args=(self.client_socket))
+    #
+    # def receive_file_from_server(self, so):
+    #     while True:
+
 
     def receive_message_from_server(self, so):
         while True:
@@ -99,6 +110,35 @@ class ClientSide:
         self.enter_text_widget.pack(side='left', pady=15)
         self.enter_text_widget.bind('<Return>', self.on_enter_key_pressed)
         frame.pack(side='top')
+
+    def display_file(self):
+        frame = Frame()
+        Label(frame, text='Enter filename:', font=("Helvetica", 16)).pack(side='left', padx=10)
+        self.file_space = Entry(frame, width=50, borderwidth=2)
+        self.file_space.pack(side='left', anchor='e')
+        self.join_button = Button(frame, text="send", width=10, command=self.send_file).pack(side='left')
+        frame.pack(side='top', anchor='nw')
+
+    def send_file(self):
+        file_name = self.file_space.get()
+        self.client_socket.sendall(file_name.encode('utf-8'))
+        data = self.client_socket.recv(1024)
+        data_transferred = 0
+
+        if not data:
+            print('could not find %s' % file_name)
+            sys.exit()
+
+        dir_path = os.getcwd()
+        with open(dir_path + "\\" + file_name, 'wb') as f:
+            try:
+                while data:
+                    f.write(data)
+                    data_transferred += len(data)
+                    data = self.client_socket.recv(1024)
+            except Exception as ex:
+                print(ex)
+        print('file %s send complete.  %d Kb' % (file_name, data_transferred))
 
     def block_ip(self):
         if len(self.ip_space.get()) == 0:
