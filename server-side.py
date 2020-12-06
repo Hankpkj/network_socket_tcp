@@ -88,13 +88,11 @@ class ChatServer:
 
                 except socket.error as e:
                     if e.errno == 56:
+                        # print('already')
                         continue
                     else:
                         print('socket error', e)
                         self.clients_list.remove(client)
-
-                finally:
-                    sleep(2)
 
                 # if un_expected_disconnection user connect send list of msg
 
