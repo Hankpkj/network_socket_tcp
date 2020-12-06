@@ -9,6 +9,8 @@ class ChatServer:
     message_list = []
     str_client_list = []
     un_expected_disconnection = []
+    obj_msg = []
+
 
     def __init__(self):
         # init socket
@@ -35,11 +37,13 @@ class ChatServer:
     def receive_messages(self, so):
         while True:
             incoming_buffer = so.recv(1024)
+            self.obj_msg.append()
 
             if not incoming_buffer:
                 break
-        self.message_list.append(incoming_buffer.decode('utf-8'))
-        self.broadcast_to_all_clients(so)  # send to all clients
+
+            self.message_list.append(incoming_buffer.decode('utf-8'))
+            self.broadcast_to_all_clients(so)  # send to all clients
 
     def broadcast_to_all_clients(self, senders_socket):
         for client in self.clients_list:
@@ -56,11 +60,11 @@ class ChatServer:
             # accept
             client = so, (ip, port) = self.server_socket.accept()
             print(ip, port)
-
+            # self.message_list.append()
             # if un_expected_disconnection user connect send list of msg
             if ip + ':' + str(port) in self.un_expected_disconnection:
                 for msg in self.message_list:
-                    so.sendall(msg.encode('utf-9'))
+                    so.sendall(msg.encode('utf-8'))
                 self.un_expected_disconnection.remove(ip + ':' + str(port))
 
             self.clients_list.append(client)
